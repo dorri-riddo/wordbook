@@ -255,6 +255,18 @@
             border-color: var(--accent);
         }
 
+        .search-highlight {
+            background: #ffe066;
+            color: var(--dark-brown);
+            padding: 1px 2px;
+            border-radius: 3px;
+            font-weight: 700;
+        }
+
+        .synonym-tag .search-highlight {
+            background: #ffd633;
+        }
+
         .backlink-link {
             cursor: pointer;
         }
@@ -1317,18 +1329,40 @@
             }
         }
 
+        // Remove all spaces from a string (for space-insensitive search)
+        function removeSpaces(str) {
+            return str.replace(/\s+/g, '');
+        }
+
+        // Highlight matching text (space-insensitive)
+        function highlightText(text, searchTerm) {
+            if (!searchTerm) return text;
+            const searchNoSpace = removeSpaces(searchTerm).toLowerCase();
+            if (!searchNoSpace) return text;
+            
+            // Build a regex that matches the search characters with optional spaces between them
+            const escaped = searchNoSpace.split('').map(ch => ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+            const pattern = escaped.join('\\s*');
+            const regex = new RegExp(`(${pattern})`, 'gi');
+            
+            return text.replace(regex, '<span class="search-highlight">$1</span>');
+        }
+
         // Render word list
         function renderWordList(filter = '') {
             lastRenderedFilter = filter;
             const wordList = document.getElementById('wordList');
             const wordCount = document.getElementById('wordCount');
             const filterLower = filter.toLowerCase();
+            const filterNoSpace = removeSpaces(filterLower);
             
             // Only show registered words (not referenced-only synonyms)
             let filteredWords = Object.entries(words)
                 .filter(([word, data]) => {
-                    return word.toLowerCase().includes(filterLower) ||
-                           data.synonyms.some(s => s.toLowerCase().includes(filterLower));
+                    if (!filterNoSpace) return true;
+                    const wordNoSpace = removeSpaces(word.toLowerCase());
+                    if (wordNoSpace.includes(filterNoSpace)) return true;
+                    return data.synonyms.some(s => removeSpaces(s.toLowerCase()).includes(filterNoSpace));
                 });
 
             // Apply tab filter
@@ -1408,9 +1442,9 @@
             wordList.innerHTML = pageWords
                 .map(([word, data]) => `
                     <div class="word-card" data-word="${word.replace(/"/g, '&quot;')}">
-                        <div class="word-title">${word}</div>
+                        <div class="word-title">${filter ? highlightText(word, filter) : word}</div>
                         <div class="synonyms">
-                            ${data.synonyms.map(s => `<span class="synonym-tag">${s}</span>`).join('')}
+                            ${data.synonyms.map(s => `<span class="synonym-tag">${filter ? highlightText(s, filter) : s}</span>`).join('')}
                         </div>
                     </div>
                 `).join('');
