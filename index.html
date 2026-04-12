@@ -392,6 +392,38 @@
             font-style: italic;
         }
 
+        .dedup-notice {
+            display: none;
+            margin-top: 8px;
+            padding: 8px 14px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            font-size: 0.88em;
+            color: #856404;
+            line-height: 1.6;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .dedup-notice.visible {
+            display: block;
+        }
+
+        .dedup-notice strong {
+            font-weight: 700;
+        }
+
+        .dedup-removed-word {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(193, 74, 74, 0.12);
+            color: var(--error);
+            border-radius: 4px;
+            font-weight: 600;
+            margin: 0 2px;
+            text-decoration: line-through;
+        }
+
         .info-box {
             padding: 16px;
             background: #e8f4f8;
@@ -807,6 +839,7 @@
                     <label>동의어 / 유사 표현</label>
                     <textarea id="synonymsInput" placeholder="연민, 불쌍히 여기다, 혀를 차다"></textarea>
                     <p class="helper-text">쉼표(,)로 구분해서 입력하세요</p>
+                    <div class="dedup-notice" id="dedupNotice"></div>
                 </div>
                 <div class="button-group">
                     <button type="submit" class="primary">저장</button>
@@ -1607,6 +1640,8 @@
             document.getElementById('wordInput').value = '';
             document.getElementById('synonymsInput').value = '';
             document.getElementById('wordInput').disabled = false;
+            document.getElementById('dedupNotice').classList.remove('visible');
+            document.getElementById('dedupNotice').innerHTML = '';
             document.getElementById('editModal').classList.add('active');
         }
 
@@ -1628,6 +1663,8 @@
                 document.getElementById('wordInput').disabled = false;
             }
             
+            document.getElementById('dedupNotice').classList.remove('visible');
+            document.getElementById('dedupNotice').innerHTML = '';
             closeDetailModal();
             document.getElementById('editModal').classList.add('active');
         }
@@ -1643,16 +1680,84 @@
             }
         }
 
+        // Deduplicate synonyms: remove duplicates and self-references, return info
+        function deduplicateSynonyms(synonymsList, wordName) {
+            const seen = new Set();
+            const duplicates = [];
+            const selfRefs = [];
+            const unique = [];
+            const wordNorm = wordName ? wordName.trim().toLowerCase() : '';
+
+            for (const s of synonymsList) {
+                const norm = s.trim().toLowerCase();
+                if (!norm) continue;
+                if (wordNorm && norm === wordNorm) {
+                    selfRefs.push(s);
+                } else if (seen.has(norm)) {
+                    duplicates.push(s);
+                } else {
+                    seen.add(norm);
+                    unique.push(s);
+                }
+            }
+
+            return { unique, duplicates, selfRefs };
+        }
+
+        // Update dedup notice UI
+        function updateDedupNotice(duplicates, selfRefs) {
+            const notice = document.getElementById('dedupNotice');
+            const messages = [];
+
+            if (duplicates.length > 0) {
+                const words = duplicates.map(d => `<span class="dedup-removed-word">${d}</span>`).join(' ');
+                messages.push(`<strong>중복 감지:</strong> ${words} — 저장 시 자동 제거됩니다`);
+            }
+            if (selfRefs.length > 0) {
+                const words = selfRefs.map(d => `<span class="dedup-removed-word">${d}</span>`).join(' ');
+                messages.push(`<strong>자기 참조:</strong> ${words} — 단어 자신은 유의어에서 제외됩니다`);
+            }
+
+            if (messages.length > 0) {
+                notice.innerHTML = messages.join('<br>');
+                notice.classList.add('visible');
+            } else {
+                notice.classList.remove('visible');
+                notice.innerHTML = '';
+            }
+        }
+
+        // Real-time duplicate detection on synonyms textarea
+        document.getElementById('synonymsInput').addEventListener('input', () => {
+            const wordInput = document.getElementById('wordInput').value.trim();
+            const synonymsText = document.getElementById('synonymsInput').value;
+            const rawList = synonymsText.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            const { duplicates, selfRefs } = deduplicateSynonyms(rawList, wordInput);
+            updateDedupNotice(duplicates, selfRefs);
+        });
+
+        // Also recheck when word input changes
+        document.getElementById('wordInput').addEventListener('input', () => {
+            const wordInput = document.getElementById('wordInput').value.trim();
+            const synonymsText = document.getElementById('synonymsInput').value;
+            const rawList = synonymsText.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            const { duplicates, selfRefs } = deduplicateSynonyms(rawList, wordInput);
+            updateDedupNotice(duplicates, selfRefs);
+        });
+
         // Save word
         function saveWord(event) {
             event.preventDefault();
             
             const word = document.getElementById('wordInput').value.trim();
             const synonymsText = document.getElementById('synonymsInput').value;
-            const synonyms = synonymsText
+            const rawSynonyms = synonymsText
                 .split(',')
                 .map(s => s.trim())
                 .filter(s => s.length > 0);
+
+            // Deduplicate synonyms
+            const { unique: synonyms, duplicates, selfRefs } = deduplicateSynonyms(rawSynonyms, word);
 
             // Check for duplicate when adding new word
             if (!editingWord && words[word]) {
@@ -1686,6 +1791,9 @@
             const searchValue = document.getElementById('searchInput').value;
             renderWordList(searchValue);
             closeModal();
+
+            // Reset dedup notice
+            document.getElementById('dedupNotice').classList.remove('visible');
         }
 
         // Close modals
