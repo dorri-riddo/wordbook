@@ -447,7 +447,7 @@
         .backlinks-section {
             margin-top: 24px;
             padding: 20px;
-            background: var(--cream);
+            background: #f6f1e7;
             border-radius: 8px;
             border: 1px solid var(--light-brown);
         }
@@ -463,11 +463,214 @@
             margin-bottom: 16px;
         }
 
+        .backlink-group + .backlink-group {
+            margin-top: 18px;
+        }
+
         .backlink-label {
             font-weight: 600;
             color: var(--medium-brown);
             margin-bottom: 8px;
             font-size: 0.95em;
+        }
+
+        /* ── 1+3 redesign: detail-modal section heads & related chips ─ */
+        .detail-section { margin-bottom: 18px; }
+
+        .detail-section-head {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .detail-section-title {
+            font-size: 1em;
+            font-weight: 600;
+            color: var(--dark-brown);
+        }
+        .detail-section-count {
+            font-size: 0.85em;
+            color: var(--light-brown);
+            font-weight: 400;
+        }
+
+        .backlink-head {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            font-size: 0.8em;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--medium-brown);
+            margin-bottom: 10px;
+        }
+        .backlink-count {
+            font-weight: 400;
+            color: var(--light-brown);
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        /* Smaller, dimmer chips for backlinks & related words. */
+        .synonym-tag.synonym-tag-sm {
+            padding: 4px 10px;
+            font-size: 0.82em;
+            background: #fbf8f1;
+            color: #9d8674;
+            border-color: #d9c9b6;
+        }
+        .synonym-tag.synonym-tag-sm:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* Hover-preview indicators.
+           ● filled dot  — registered main word (hover shows its own synonyms)
+           ○ ring        — appears only as a synonym in other entries (hover shows referencing words) */
+        .synonym-tag.has-preview::after,
+        .synonym-tag.has-references::after {
+            content: "";
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            margin-left: 6px;
+            vertical-align: middle;
+            opacity: 0.55;
+            transition: opacity 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+            box-sizing: border-box;
+        }
+        .synonym-tag.has-preview::after {
+            background: var(--accent);
+        }
+        .synonym-tag.has-references::after {
+            background: transparent;
+            border: 1.5px solid var(--accent);
+        }
+        .synonym-tag.has-preview:hover::after {
+            background: white;
+            opacity: 1;
+        }
+        .synonym-tag.has-references:hover::after {
+            background: transparent;
+            border-color: white;
+            opacity: 1;
+        }
+        /* On touch / hover-less devices the dot is misleading — hide it. */
+        @media (hover: none) {
+            .synonym-tag.has-preview::after,
+            .synonym-tag.has-references::after { display: none; }
+        }
+
+        .via-label {
+            font-size: 0.8em;
+            color: var(--light-brown);
+            font-style: italic;
+            margin-left: 4px;
+        }
+        .synonym-tag.synonym-tag-sm:hover .via-label {
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .more-btn {
+            margin-top: 10px;
+            padding: 4px 12px;
+            font-size: 0.85em;
+            font-family: 'Noto Serif KR', serif;
+            font-weight: 400;
+            background: transparent;
+            border: none;
+            color: var(--accent);
+            cursor: pointer;
+            box-shadow: none;
+        }
+        .more-btn:hover {
+            background: transparent;
+            color: var(--dark-brown);
+            text-decoration: underline;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* ── Hovercard — preview chip's synonyms without leaving the modal ── */
+        /* Single floating element appended to <body>, positioned in viewport coords
+           so the modal's overflow:hidden never clips it. */
+        .hovercard {
+            position: fixed;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            width: 240px;
+            padding: 12px 14px;
+            background: white;
+            border: 1px solid var(--light-brown);
+            border-radius: 10px;
+            box-shadow: 0 12px 32px rgba(61, 46, 38, 0.18);
+            z-index: 2000;
+            animation: hovercardIn 0.12s ease;
+            pointer-events: none;
+            transform: translateX(-50%);
+            white-space: normal;
+            text-align: left;
+            color: var(--dark-brown);
+            font-family: 'Noto Serif KR', serif;
+            line-height: 1.4;
+        }
+        .hovercard.visible { display: flex; }
+        @keyframes hovercardIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        /* Notch — appears at bottom when card is above the chip, flipped when below. */
+        .hovercard::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background: white;
+            transform: translateX(-50%) rotate(45deg);
+        }
+        .hovercard.anchor-bottom::after {
+            bottom: -6px;
+            border-right: 1px solid var(--light-brown);
+            border-bottom: 1px solid var(--light-brown);
+        }
+        .hovercard.anchor-top::after {
+            top: -6px;
+            border-left: 1px solid var(--light-brown);
+            border-top: 1px solid var(--light-brown);
+        }
+        .hovercard-head {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7em;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--light-brown);
+        }
+        .hovercard-word { color: var(--dark-brown); font-weight: 700; }
+        .hovercard-meta { font-style: italic; text-transform: none; letter-spacing: 0; }
+        .hovercard-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .hovercard-chip {
+            font-size: 0.82em;
+            color: var(--medium-brown);
+            background: var(--cream);
+            border: 1px solid var(--light-brown);
+            border-radius: 5px;
+            padding: 3px 9px;
+        }
+        .hovercard-chip-more {
+            background: transparent;
+            color: var(--light-brown);
+            border-style: dashed;
+        }
+        .hovercard-hint { font-size: 0.72em; color: var(--accent); margin-top: 2px; }
+        /* Skip hovercards on touch / narrow screens — they don't fit and there's no hover. */
+        @media (max-width: 480px), (hover: none) {
+            .hovercard { display: none !important; }
         }
 
         .empty-state {
@@ -1560,71 +1763,307 @@
             };
         }
 
-        // Show detail modal
+        // Compute which synonym of `word` connects it to `related`.
+        // Returns the first matching synonym, or null if none.
+        function findViaSynonym(word, relatedWord) {
+            const data = words[word];
+            if (!data) return null;
+            const syns = data.synonyms;
+
+            // Case A: relatedWord (if registered) lists one of word's synonyms.
+            const relatedData = words[relatedWord];
+            if (relatedData) {
+                for (const s of syns) {
+                    if (relatedData.synonyms.includes(s)) return s;
+                }
+            }
+            // Case B: one of word's synonyms is a registered word that lists relatedWord.
+            for (const s of syns) {
+                if (words[s] && words[s].synonyms.includes(relatedWord)) return s;
+            }
+            return null;
+        }
+
+        // Find all registered words that list `word` as one of their synonyms.
+        // Used for hover-previews on chips that aren't themselves registered.
+        function findReferencingWords(word) {
+            const out = [];
+            for (const w in words) {
+                if (w === word) continue;
+                if (words[w].synonyms && words[w].synonyms.includes(word)) {
+                    out.push(w);
+                }
+            }
+            return out;
+        }
+
+        // ── Hovercard: a single floating element appended to <body> ──
+        let _hovercardEl = null;
+        function _ensureHovercard() {
+            if (_hovercardEl) return _hovercardEl;
+            _hovercardEl = document.createElement('div');
+            _hovercardEl.className = 'hovercard';
+            document.body.appendChild(_hovercardEl);
+            // Hide on any scroll (in the modal or otherwise) and on resize —
+            // a stale floating card would drift away from its chip.
+            window.addEventListener('scroll', hideHovercard, true);
+            window.addEventListener('resize', hideHovercard);
+            return _hovercardEl;
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+            })[c]);
+        }
+
+        function showHovercard(chipEl, word) {
+            // Skip on coarse pointers / narrow viewports.
+            if (window.matchMedia('(hover: none)').matches) return;
+            if (window.innerWidth <= 480) return;
+
+            // Decide what to show:
+            //   - registered word → its own synonyms ("…의 동의어")
+            //   - synonym-only word → words that contain it ("…을(를) 포함하는 단어")
+            const data = words[word];
+            let mode, items, metaLabel;
+            if (data && data.synonyms && data.synonyms.length > 0) {
+                mode = 'synonyms';
+                items = data.synonyms.slice(0, 6);
+                metaLabel = '의 동의어';
+            } else {
+                const refs = findReferencingWords(word);
+                if (refs.length === 0) return;
+                mode = 'references';
+                items = refs.slice(0, 6);
+                metaLabel = '을(를) 포함하는 단어';
+            }
+
+            const el = _ensureHovercard();
+            const moreCount = mode === 'synonyms'
+                ? Math.max(0, data.synonyms.length - items.length)
+                : Math.max(0, findReferencingWords(word).length - items.length);
+
+            el.innerHTML = `
+                <div class="hovercard-head">
+                    <span class="hovercard-word">${escapeHtml(word)}</span>
+                    <span class="hovercard-meta">${escapeHtml(metaLabel)}</span>
+                </div>
+                <div class="hovercard-chips">
+                    ${items.map(s => `<span class="hovercard-chip">${escapeHtml(s)}</span>`).join('')}
+                    ${moreCount > 0 ? `<span class="hovercard-chip hovercard-chip-more">+${moreCount}</span>` : ''}
+                </div>
+                <div class="hovercard-hint">클릭해서 이동 →</div>
+            `;
+            // Show first so we can measure, then position.
+            el.classList.add('visible');
+            el.classList.remove('anchor-top', 'anchor-bottom');
+
+            const chipR = chipEl.getBoundingClientRect();
+            const cardR = el.getBoundingClientRect();
+            const margin = 8;
+            const gap = 10;
+
+            // Default: above the chip (notch at bottom).
+            let top = chipR.top - cardR.height - gap;
+            let anchor = 'bottom';
+            if (top < margin) {
+                // Flip below.
+                top = chipR.bottom + gap;
+                anchor = 'top';
+            }
+            // Horizontal center, clamped to viewport.
+            let centerX = chipR.left + chipR.width / 2;
+            const half = cardR.width / 2;
+            if (centerX - half < margin) centerX = margin + half;
+            if (centerX + half > window.innerWidth - margin) centerX = window.innerWidth - margin - half;
+
+            el.style.left = centerX + 'px';
+            el.style.top = top + 'px';
+            el.classList.add(anchor === 'bottom' ? 'anchor-bottom' : 'anchor-top');
+        }
+
+        function hideHovercard() {
+            if (_hovercardEl) {
+                _hovercardEl.classList.remove('visible', 'anchor-top', 'anchor-bottom');
+            }
+        }
+
+        // How many related words to show before "더보기" kicks in.
+        const RELATED_COLLAPSED_COUNT = 5;
+        let _detailRelatedExpanded = false;
+
+        // Build a chip element with hover-preview wiring.
+        function _makeChip({ word, size = 'md', via = null }) {
+            const span = document.createElement('span');
+
+            const isRegistered = !!(words[word] && words[word].synonyms && words[word].synonyms.length > 0);
+            const hasReferences = !isRegistered && findReferencingWords(word).length > 0;
+            const hasPreview = isRegistered || hasReferences;
+
+            span.className = 'synonym-tag'
+                + (size === 'sm' ? ' synonym-tag-sm' : '')
+                + ' backlink-link'
+                + (isRegistered ? ' has-preview' : '')
+                + (hasReferences ? ' has-references' : '');
+            span.setAttribute('data-word', word);
+            span.textContent = word;
+            if (via) {
+                const v = document.createElement('span');
+                v.className = 'via-label';
+                v.textContent = '· ' + via;
+                span.appendChild(v);
+            }
+            // Hover wiring — preview either own synonyms or referencing words.
+            if (hasPreview) {
+                span.addEventListener('mouseenter', () => showHovercard(span, word));
+                span.addEventListener('mouseleave', hideHovercard);
+            }
+            // Click — navigate to that word's detail.
+            span.addEventListener('click', () => {
+                hideHovercard();
+                showDetail(word);
+            });
+            return span;
+        }
+
+        // Show detail modal (redesigned: hovercard preview + tighter hierarchy)
         function showDetail(word) {
             currentWord = word;
             const data = words[word];
             const backlinks = getBacklinks(word);
+            _detailRelatedExpanded = false;
+            hideHovercard();
 
             document.getElementById('detailTitle').textContent = word;
-            
-            let synonymsHtml;
-            if (data) {
-                synonymsHtml = data.synonyms.length > 0 
-                    ? `<div class="synonyms">${data.synonyms.map(s => `<span class="synonym-tag">${s}</span>`).join('')}</div>`
-                    : '<p style="color: var(--medium-brown); font-style: italic;">등록된 동의어가 없습니다</p>';
+
+            // ── Direct synonyms section ────────────────────────────
+            const detailContent = document.getElementById('detailContent');
+            detailContent.innerHTML = '';
+
+            const section = document.createElement('div');
+            section.className = 'detail-section';
+
+            const head = document.createElement('div');
+            head.className = 'detail-section-head';
+            const title = document.createElement('span');
+            title.className = 'detail-section-title';
+            title.textContent = '동의어 / 유사 표현';
+            head.appendChild(title);
+
+            if (data && data.synonyms.length > 0) {
+                const count = document.createElement('span');
+                count.className = 'detail-section-count';
+                count.textContent = '· ' + data.synonyms.length + '개';
+                head.appendChild(count);
+            }
+            section.appendChild(head);
+
+            if (!data) {
+                const note = document.createElement('p');
+                note.style.cssText = 'color: var(--medium-brown); font-style: italic;';
+                note.textContent = '이 단어는 아직 등록되지 않았습니다. 다른 단어의 동의어로만 참조됩니다.';
+                section.appendChild(note);
+            } else if (data.synonyms.length === 0) {
+                const note = document.createElement('p');
+                note.style.cssText = 'color: var(--medium-brown); font-style: italic;';
+                note.textContent = '등록된 동의어가 없습니다';
+                section.appendChild(note);
             } else {
-                synonymsHtml = '<p style="color: var(--medium-brown); font-style: italic;">이 단어는 아직 등록되지 않았습니다. 다른 단어의 동의어로만 참조됩니다.</p>';
-            }
-
-            document.getElementById('detailContent').innerHTML = `
-                <div class="form-group">
-                    <label>동의어 / 유사 표현</label>
-                    ${synonymsHtml}
-                </div>
-            `;
-
-            let backlinksHtml = '';
-            
-            if (backlinks.direct.length > 0) {
-                backlinksHtml += `
-                    <div class="backlink-group">
-                        <div class="backlink-label">🔗 이 단어를 포함하는 항목</div>
-                        <div class="synonyms">
-                            ${backlinks.direct.map(w => `<span class="synonym-tag backlink-link" data-word="${w.replace(/"/g, '&quot;')}">${w}</span>`).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            if (backlinks.related.length > 0) {
-                backlinksHtml += `
-                    <div class="backlink-group">
-                        <div class="backlink-label">💡 연결된 관련 단어</div>
-                        <div class="synonyms">
-                            ${backlinks.related.map(w => `<span class="synonym-tag backlink-link" data-word="${w.replace(/"/g, '&quot;')}">${w}</span>`).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            if (!backlinks.direct.length && !backlinks.related.length) {
-                backlinksHtml = '<p style="color: var(--medium-brown); font-style: italic;">연결된 단어가 없습니다</p>';
-            }
-
-            const backlinksSection = document.getElementById('backlinksSection');
-            backlinksSection.innerHTML = `
-                <div class="backlinks-title">백링크</div>
-                ${backlinksHtml}
-            `;
-
-            // Attach backlink click handlers
-            backlinksSection.querySelectorAll('.backlink-link').forEach(tag => {
-                tag.addEventListener('click', () => {
-                    const w = tag.getAttribute('data-word');
-                    if (w) showDetail(w);
+                const row = document.createElement('div');
+                row.className = 'synonyms';
+                data.synonyms.forEach(s => {
+                    row.appendChild(_makeChip({ word: s, size: 'md' }));
                 });
-            });
+                section.appendChild(row);
+            }
+            detailContent.appendChild(section);
+
+            // ── Backlinks + related-words section ─────────────────
+            const backlinksSection = document.getElementById('backlinksSection');
+            backlinksSection.innerHTML = '';
+
+            // De-dupe related: drop anything already in direct backlinks.
+            const directSet = new Set(backlinks.direct);
+            const dedupedRelated = backlinks.related.filter(w => !directSet.has(w));
+
+            // No connections? Show a quiet note and bail.
+            if (backlinks.direct.length === 0 && dedupedRelated.length === 0) {
+                const note = document.createElement('p');
+                note.style.cssText = 'color: var(--medium-brown); font-style: italic;';
+                note.textContent = '연결된 단어가 없습니다';
+                backlinksSection.appendChild(note);
+                document.getElementById('detailModal').classList.add('active');
+                return;
+            }
+
+            // — direct backlinks group —
+            if (backlinks.direct.length > 0) {
+                const group = document.createElement('div');
+                group.className = 'backlink-group';
+
+                const gh = document.createElement('div');
+                gh.className = 'backlink-head';
+                gh.innerHTML = '<span>🔗 이 단어를 포함하는 항목</span>' +
+                    '<span class="backlink-count">· ' + backlinks.direct.length + '</span>';
+                group.appendChild(gh);
+
+                const row = document.createElement('div');
+                row.className = 'synonyms';
+                backlinks.direct.forEach(w => {
+                    row.appendChild(_makeChip({ word: w, size: 'sm' }));
+                });
+                group.appendChild(row);
+                backlinksSection.appendChild(group);
+            }
+
+            // — related words group (with via + collapse) —
+            if (dedupedRelated.length > 0) {
+                const group = document.createElement('div');
+                group.className = 'backlink-group';
+
+                const gh = document.createElement('div');
+                gh.className = 'backlink-head';
+                gh.innerHTML = '<span>💡 연결된 관련 단어</span>' +
+                    '<span class="backlink-count">· ' + dedupedRelated.length + '</span>';
+                group.appendChild(gh);
+
+                const row = document.createElement('div');
+                row.className = 'synonyms';
+                group.appendChild(row);
+
+                const moreBtn = document.createElement('button');
+                moreBtn.type = 'button';
+                moreBtn.className = 'more-btn';
+                group.appendChild(moreBtn);
+
+                function renderRelatedChips() {
+                    row.innerHTML = '';
+                    const visible = _detailRelatedExpanded
+                        ? dedupedRelated
+                        : dedupedRelated.slice(0, RELATED_COLLAPSED_COUNT);
+                    visible.forEach(w => {
+                        const via = findViaSynonym(word, w);
+                        row.appendChild(_makeChip({ word: w, size: 'sm', via }));
+                    });
+                    const hidden = dedupedRelated.length - visible.length;
+                    if (hidden > 0) {
+                        moreBtn.style.display = '';
+                        moreBtn.textContent = '+ ' + hidden + '개 더보기 ▾';
+                    } else if (_detailRelatedExpanded && dedupedRelated.length > RELATED_COLLAPSED_COUNT) {
+                        moreBtn.style.display = '';
+                        moreBtn.textContent = '접기 ▴';
+                    } else {
+                        moreBtn.style.display = 'none';
+                    }
+                }
+                moreBtn.addEventListener('click', () => {
+                    _detailRelatedExpanded = !_detailRelatedExpanded;
+                    renderRelatedChips();
+                });
+                renderRelatedChips();
+                backlinksSection.appendChild(group);
+            }
 
             document.getElementById('detailModal').classList.add('active');
         }
@@ -1802,6 +2241,7 @@
         }
 
         function closeDetailModal() {
+            hideHovercard();
             document.getElementById('detailModal').classList.remove('active');
             currentWord = null;
         }
