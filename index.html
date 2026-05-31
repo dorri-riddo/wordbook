@@ -1817,7 +1817,7 @@
             })[c]);
         }
 
-        function showHovercard(chipEl, word) {
+        function showHovercard(chipEl, word, excludeWord = null) {
             // Skip on coarse pointers / narrow viewports.
             if (window.matchMedia('(hover: none)').matches) return;
             if (window.innerWidth <= 480) return;
@@ -1825,24 +1825,30 @@
             // Decide what to show:
             //   - registered word → its own synonyms ("…의 동의어")
             //   - synonym-only word → words that contain it ("…을(를) 포함하는 단어")
+            // Always drop the currently open word (excludeWord) so a chip never
+            // previews back to the word we're already viewing.
             const data = words[word];
-            let mode, items, metaLabel;
+            let mode, items, metaLabel, total;
+            const isExcluded = s => excludeWord && s.trim().toLowerCase() === excludeWord.trim().toLowerCase();
+
             if (data && data.synonyms && data.synonyms.length > 0) {
+                const filtered = data.synonyms.filter(s => !isExcluded(s));
+                if (filtered.length === 0) return;
                 mode = 'synonyms';
-                items = data.synonyms.slice(0, 6);
+                total = filtered.length;
+                items = filtered.slice(0, 6);
                 metaLabel = '의 동의어';
             } else {
-                const refs = findReferencingWords(word);
+                const refs = findReferencingWords(word).filter(s => !isExcluded(s));
                 if (refs.length === 0) return;
                 mode = 'references';
+                total = refs.length;
                 items = refs.slice(0, 6);
                 metaLabel = '을(를) 포함하는 단어';
             }
 
             const el = _ensureHovercard();
-            const moreCount = mode === 'synonyms'
-                ? Math.max(0, data.synonyms.length - items.length)
-                : Math.max(0, findReferencingWords(word).length - items.length);
+            const moreCount = Math.max(0, total - items.length);
 
             el.innerHTML = `
                 <div class="hovercard-head">
@@ -1897,8 +1903,15 @@
         function _makeChip({ word, size = 'md', via = null }) {
             const span = document.createElement('span');
 
-            const isRegistered = !!(words[word] && words[word].synonyms && words[word].synonyms.length > 0);
-            const hasReferences = !isRegistered && findReferencingWords(word).length > 0;
+            // Exclude the word the modal is currently showing — a chip shouldn't
+            // preview (or badge) back to the word we're already looking at.
+            const isExcluded = s => currentWord && s.trim().toLowerCase() === currentWord.trim().toLowerCase();
+
+            const data = words[word];
+            const ownSynonyms = (data && data.synonyms ? data.synonyms : []).filter(s => !isExcluded(s));
+            const isRegistered = ownSynonyms.length > 0;
+            const hasReferences = !isRegistered
+                && findReferencingWords(word).filter(s => !isExcluded(s)).length > 0;
             const hasPreview = isRegistered || hasReferences;
 
             span.className = 'synonym-tag'
@@ -1915,8 +1928,10 @@
                 span.appendChild(v);
             }
             // Hover wiring — preview either own synonyms or referencing words.
+            // Exclude the currently open word so a chip never previews back to the
+            // word we're already viewing (e.g. 상처→통각 shouldn't preview 상처).
             if (hasPreview) {
-                span.addEventListener('mouseenter', () => showHovercard(span, word));
+                span.addEventListener('mouseenter', () => showHovercard(span, word, currentWord));
                 span.addEventListener('mouseleave', hideHovercard);
             }
             // Click — navigate to that word's detail.
