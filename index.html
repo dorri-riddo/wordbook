@@ -1080,6 +1080,8 @@
         let autoCreateWords = localStorage.getItem('autoCreateWords') === 'true';
         let isSyncing = false;
         let lastSaveId = null; // Track our own save ID for conflict detection
+        let loadOk = false; // true only after a COMPLETE, clean load from gist (guards against overwriting server with partial data)
+        let lastLoadedGroupCounts = {}; // per-consonant word counts at last known-good state (for wipe detection)
         
         // Pagination and tab variables
         let currentTab = '전체';
@@ -1157,6 +1159,7 @@
 
             try {
                 updateSyncStatus('syncing');
+                loadOk = false; // 이번 로드가 깨끗하게 끝나기 전까지는 저장 금지
                 const response = await fetch(`${GITHUB_API}/gists/${gistId}`, {
                     headers: {
                         'Authorization': `token ${githubToken}`,
@@ -1179,6 +1182,8 @@
                         
                         // Save in new format (this will also delete vocabulary.json)
                         await migrateToMultiFile();
+                        lastLoadedGroupCounts = computeGroupCounts(words);
+                        loadOk = true;
                         updateSyncStatus('synced');
                     } else if (files['vocab_meta.json']) {
                         // === NEW FORMAT: load from multi-file ===
@@ -1189,13 +1194,17 @@
                         } catch (e) {
                             lastSaveId = null;
                         }
-                        words = mergeWordsFromFiles(files);
+                        words = await mergeWordsFromFiles(files);
                         localStorage.setItem('wordDictionary', JSON.stringify(words));
+                        lastLoadedGroupCounts = computeGroupCounts(words); // 정상 로드된 상태를 기준선으로
+                        loadOk = true;
                         renderWordList();
                         updateSyncStatus('synced');
                     } else {
                         // Empty gist or unknown format
                         words = {};
+                        lastLoadedGroupCounts = {};
+                        loadOk = true; // 빈 gist는 정상 상태 — 저장 허용
                         renderWordList();
                         updateSyncStatus('synced');
                     }
@@ -1278,7 +1287,40 @@
 
             try {
                 updateSyncStatus('syncing');
-                
+
+                // === 방어 ②: 이번 세션에서 서버를 깨끗하게 불러오지 못했다면 저장 금지 ===
+                // (로드가 깨진 상태로 PATCH하면 누락된 그룹이 서버에서도 전멸한다)
+                if (gistId && !loadOk) {
+                    updateSyncStatus('error', '로드 미완료 — 저장 보류');
+                    alert('서버 데이터를 안전하게 불러오지 못해 저장을 중단했습니다.\n페이지를 새로고침해 다시 불러온 뒤 저장해주세요.');
+                    return;
+                }
+
+                // === 방어 ③: 직전 정상 상태 대비 특정 그룹이 거의 전멸했는지 감지 ===
+                if (gistId) {
+                    const nowCounts = computeGroupCounts(words);
+                    const wiped = [];
+                    for (const g of Object.keys(lastLoadedGroupCounts)) {
+                        const before = lastLoadedGroupCounts[g];
+                        const after = nowCounts[g] || 0;
+                        if (before >= 5 && after <= 1) {
+                            wiped.push(`  ${g}그룹: ${before}개 → ${after}개`);
+                        }
+                    }
+                    if (wiped.length > 0) {
+                        const proceed = confirm(
+                            '다음 그룹의 단어가 거의 전부 사라졌습니다:\n\n' +
+                            wiped.join('\n') +
+                            '\n\n실수로 인한 손실이 아니라면 [확인]을 누르세요.\n' +
+                            '[취소]를 누르면 저장하지 않고 현재 서버 데이터를 보존합니다.'
+                        );
+                        if (!proceed) {
+                            updateSyncStatus('synced');
+                            return;
+                        }
+                    }
+                }
+
                 // === CONFLICT DETECTION: compare saveId in vocab_meta.json ===
                 if (gistId && lastSaveId !== null) {
                     try {
@@ -1380,6 +1422,8 @@
                         document.getElementById('gistIdGroup').style.display = 'block';
                     }
                     localStorage.setItem('wordDictionary', JSON.stringify(words));
+                    lastLoadedGroupCounts = computeGroupCounts(words); // 저장 성공 = 새로운 기준선
+                    localStorage.setItem('wordDictionary_backup', JSON.stringify(words)); // 직전 정상본 백업
                     updateSyncStatus('synced');
                 } else {
                     throw new Error('저장 실패');
@@ -1498,19 +1542,43 @@
             return groups;
         }
 
-        function mergeWordsFromFiles(gistFiles) {
+        async function mergeWordsFromFiles(gistFiles) {
             const merged = {};
             for (const [filename, fileObj] of Object.entries(gistFiles)) {
                 if (filename.startsWith('vocab_') && filename.endsWith('.json') && filename !== 'vocab_meta.json') {
-                    try {
-                        const data = JSON.parse(fileObj.content);
-                        Object.assign(merged, data);
-                    } catch (e) {
-                        console.warn(`Failed to parse ${filename}:`, e);
+                    let content = fileObj.content;
+                    // GitHub Gist API는 1MB가 넘는 파일의 content를 잘라서 보낸다(truncated: true).
+                    // 잘린 채로 파싱하면 실패하므로, raw_url에서 전체 내용을 다시 받아온다.
+                    if (fileObj.truncated && fileObj.raw_url) {
+                        const rawResp = await fetch(fileObj.raw_url, {
+                            headers: { 'Authorization': `token ${githubToken}` }
+                        });
+                        if (!rawResp.ok) {
+                            throw new Error(`${filename}의 전체 내용을 불러오지 못했습니다 (truncated).`);
+                        }
+                        content = await rawResp.text();
                     }
+                    // ★ 파싱 실패를 조용히 건너뛰면 해당 그룹이 통째로 누락된 채 저장되어
+                    //   데이터가 전멸한다(이번 사고의 근본 원인). 반드시 에러를 던져
+                    //   로드 자체를 실패로 만들고, 불완전한 words가 만들어지지 않게 한다.
+                    let data;
+                    try {
+                        data = JSON.parse(content);
+                    } catch (e) {
+                        throw new Error(`${filename} 파싱 실패 — 데이터 보호를 위해 로드를 중단합니다.`);
+                    }
+                    Object.assign(merged, data);
                 }
             }
             return merged;
+        }
+
+        // 단어 객체를 초성 그룹별 단어 수로 환산 (전멸 감지의 기준선으로 사용)
+        function computeGroupCounts(w) {
+            const g = splitWordsByConsonant(w);
+            const counts = {};
+            for (const key of Object.keys(g)) counts[key] = Object.keys(g[key]).length;
+            return counts;
         }
 
         // (mergeWords and fetchRemoteWords removed - replaced by conflict detection in saveToGist)
